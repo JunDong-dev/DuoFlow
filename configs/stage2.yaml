@@ -1,0 +1,170 @@
+# Modified for DuoFlow; see NOTICE.md.
+model:
+  text_encoder_path: ${MOTIONSPEECH_TEXT_ENCODER}
+  training_mode: full
+  num_transformer_layers: 8
+  load_checkpoint: ${MOTIONSPEECH_STAGE1_CHECKPOINT}
+  allow_missing_checkpoint_keys: false
+  init_transformer_from_scratch: false
+  use_phoneme_time_anchor: true
+  aux_ctc_tap_blocks: [0, 1, 2, 3, 4, 5, 6, 7]
+  transformer_in_channels: 256
+  transformer_out_channels: 256
+  audio_in_channels: 128
+  use_text_cross_attention: true
+  transformer_num_attention_heads: 32
+  transformer_attention_head_dim: 32
+  transformer_cross_attention_dim: 1024
+  audio_num_attention_heads: 32
+  audio_attention_head_dim: 32
+  audio_cross_attention_dim: 1024
+  audio_caption_projection_use_skip: false
+  audio_caption_projection_act_fn: none
+  audio_phoneme_caption_projection_act_fn: none
+  audio_audcap_caption_projection_act_fn: none
+  video_caption_projection_use_skip: false
+  video_caption_projection_act_fn: none
+  audioldm2_model_id: anhnct/audioldm2_gigaspeech
+  audioldm2_cache_dir: ${MOTIONSPEECH_AUDIOLDM2_CACHE}
+  use_phoneme_encoder: true
+  phoneme_encoder_checkpoint: ${MOTIONSPEECH_PHONEME_ENCODER}
+  phoneme_encoder_checkpoint_prefix: null
+  phoneme_encoder_trainable: false
+  phoneme_encoder_vocab_size: 183
+  phoneme_encoder_pad_length: 500
+  phoneme_encoder_add_blank: false
+  phoneme_encoder_out_channels: 192
+  phoneme_encoder_hidden_channels: 192
+  phoneme_encoder_filter_channels: 768
+  phoneme_encoder_n_heads: 2
+  phoneme_encoder_n_layers: 6
+  phoneme_encoder_kernel_size: 3
+  phoneme_encoder_p_dropout: 0.1
+
+training_strategy:
+  name: text_to_motion_audio
+  with_audio: true
+  audio_latents_dir: audio_latents
+  motion_latents_dir: motion_latents
+  joint_conditions_dir: joint_conditions
+  motion_conditions_dir: joint_conditions
+  speak_conditions_dir: joint_conditions
+  direct_text_concat: false
+  text_conditioning_dim: 3840
+  motion_text_cross_attention: false
+  motion_thinking_tokens: 0
+  motion_loss_weight: 1.0
+  audio_loss_weight: 1.0
+  aux_ctc_weight: 1.0
+  aux_ctc_num_classes: 184
+  aux_ctc_hidden_dim: 1024
+  audio_only_training: false
+  audio_only_disable_video_branch: false
+  motion_proj_enabled: false
+  motion_proj_type: linear
+  motion_proj_output_dim: 256
+  max_motion_frames: null
+  max_audio_steps: 900
+  use_correct_motion_time_coordinates: true
+  unconditional_prob: 0.1
+  use_phoneme_encoder: true
+  phoneme_proj_type: linear
+  use_audcap: false
+  audcap_dropout_prob: 0.1
+  gemma_num_layers: 3
+  gemma_feature_selection: embedding_first_last
+  use_connectors: true
+  connector_num_attention_heads: 15
+  connector_attention_head_dim: 128
+  connector_num_layers: 1
+  connector_ff_mult: 2
+  connector_num_learnable_registers: null
+  connector_zero_init_output: true
+  video_use_connector: true
+  audio_use_connector: true
+  connector_residual: true
+
+optimization:
+  learning_rate: 0.0002
+  audio_learning_rate: 0.00001
+  scheduler_type: cosine
+  scheduler_params:
+    eta_min: 0.000001
+  steps: 200000
+  batch_size: 4
+  gradient_accumulation_steps: 1
+  max_grad_norm: 1.0
+  optimizer_type: adamw8bit
+  weight_decay: 0.01
+  warmup_steps: 2000
+  enable_gradient_checkpointing: false
+  use_ema: false
+  ema_decay: 0.9999
+
+acceleration:
+  mixed_precision_mode: bf16
+  quantization: null
+  load_text_encoder_in_8bit: false
+
+data:
+  preprocessed_data_root: ${MOTIONSPEECH_TRAIN_ROOT}
+  replay_preprocessed_data_root: ${EMILIA_TRAIN_ROOT}
+  replay_batch_prob: 0.1
+  num_dataloader_workers: 4
+
+validation:
+  val_preprocessed_data_root: ${MOTIONSPEECH_VAL_ROOT}
+  fixed_noise_eval: true
+  fixed_noise_seed: 1234
+  eval_batch_size: 1
+  eval_progress_bar: true
+  prompts:
+    - "<L1>Small conversational gestures.</L1><S>A short validation sentence.</E><AUDCAP>Calm neutral voice.</AUDCAP>"
+  negative_prompt: ""
+  images: null
+  reference_videos: null
+  video_dims: [1, 1, 129]
+  frame_rate: 10.0
+  seed: 0
+  inference_steps: 30
+  interval: null
+  videos_per_prompt: 1
+  guidance_scale: 5.0
+  motion_guidance_scale: 1.0
+  audio_guidance_scale: 5.0
+  stg_scale: 0.0
+  stg_blocks: []
+  stg_mode: stg_av
+  generate_audio: true
+  skip_initial_validation: true
+  include_reference_in_output: false
+
+checkpoints:
+  interval: 1000
+  keep_last_n: 2
+  precision: bfloat16
+
+hub:
+  push_to_hub: false
+  hub_model_id: null
+
+wandb:
+  enabled: false
+  project: duoflow-stage2
+  entity: null
+  tags: []
+  log_validation_videos: false
+
+tensorboard:
+  enabled: true
+  log_dir: ${MOTIONSPEECH_STAGE2_OUTPUT}/tensorboard
+  flush_secs: 30
+  log_every_n_steps: 1
+
+flow_matching:
+  timestep_sampling_mode: shifted_logit_normal
+  timestep_sampling_params:
+    std: 1.0
+
+seed: 42
+output_dir: ${MOTIONSPEECH_STAGE2_OUTPUT}
